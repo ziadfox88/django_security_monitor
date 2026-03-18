@@ -1,0 +1,111 @@
+{% extends "django_security_monitor/base.html" %}
+{% block title %}Threat IPs{% endblock %}
+{% block topbar_title %}🎯 Threat Intelligence{% endblock %}
+
+{% block content %}
+<!-- Tab filters -->
+<div style="display:flex;gap:8px;margin-bottom:16px">
+  <a href="?show=all"     class="btn {% if show == 'all' %}btn-primary{% endif %}">All IPs</a>
+  <a href="?show=blocked" class="btn {% if show == 'blocked' %}btn-danger{% endif %}">🔒 Blocked</a>
+  <a href="?show=active"  class="btn {% if show == 'active' %}btn-primary{% endif %}">⚠ Active Threats</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      IP Threat Scores
+      <span style="color:var(--text3);font-weight:400">({{ page_obj.paginator.count }})</span>
+    </span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>IP Address</th><th>Hack Probability</th><th>Score</th><th>Risk</th>
+          <th>Events</th><th>Last Seen</th><th>Country</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in page_obj %}
+        {% with prob=t.hack_probability %}
+        <tr>
+          <td class="ip-cell">
+            <a href="{% url 'security_monitor:ip_detail' t.ip_address %}">{{ t.ip_address }}</a>
+          </td>
+          <td>
+            <div class="prob-bar">
+              <div class="prob-track">
+                <div class="prob-fill
+                  {% if prob >= 80 %}prob-crit
+                  {% elif prob >= 50 %}prob-high
+                  {% elif prob >= 25 %}prob-med
+                  {% else %}prob-low{% endif %}"
+                  style="width:{{ prob }}%"></div>
+              </div>
+              <span style="font-size:11px;color:var(--text2);min-width:36px">{{ prob }}%</span>
+            </div>
+          </td>
+          <td style="font-weight:700;font-size:16px">{{ t.score|floatformat:0 }}</td>
+          <td>
+            {% if t.is_blocked %}
+              <span class="badge badge-blocked">🔒 Blocked</span>
+            {% else %}
+              <span class="badge badge-{{ t.risk_level }}">{{ t.risk_level }}</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text2)">{{ t.event_count }}</td>
+          <td style="color:var(--text3);font-size:12px">{{ t.last_event|date:"M d H:i" }}</td>
+          <td style="color:var(--text3);font-size:12px">
+            {{ t.location.country_code|default:"—" }}
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              {% if t.is_blocked %}
+              <form method="post" action="{% url 'security_monitor:unblock_ip' t.ip_address %}"
+                    style="display:inline">
+                {% csrf_token %}
+                <button class="btn btn-success" type="submit">✓ Unblock</button>
+              </form>
+              {% else %}
+              <form method="post" action="{% url 'security_monitor:block_ip' t.ip_address %}"
+                    style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="reason" value="Manually blocked from threats panel">
+                <button class="btn btn-danger" type="submit">🔒 Block</button>
+              </form>
+              {% endif %}
+              <form method="post" action="{% url 'security_monitor:whitelist_ip' t.ip_address %}"
+                    style="display:inline">
+                {% csrf_token %}
+                <button class="btn" type="submit" title="Whitelist this IP">✅ Trust</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">
+            No threats found
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:8px;padding:14px;justify-content:center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&show={{ show }}" class="btn">← Prev</a>
+    {% endif %}
+    <span style="padding:6px 12px;color:var(--text2)">
+      {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&show={{ show }}" class="btn">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

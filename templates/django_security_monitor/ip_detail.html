@@ -1,0 +1,201 @@
+{% extends "django_security_monitor/base.html" %}
+{% block title %}IP: {{ threat.ip_address }}{% endblock %}
+{% block topbar_title %}🔎 IP Analysis: {{ threat.ip_address }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="margin-bottom:16px">
+
+  <!-- IP Info Card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">IP Profile</span>
+      {% if threat.is_blocked %}
+        <span class="badge badge-blocked">🔒 Blocked</span>
+      {% elif whitelisted %}
+        <span class="badge badge-safe">✅ Whitelisted</span>
+      {% else %}
+        <span class="badge badge-{{ threat.risk_level }}">{{ threat.risk_level }}</span>
+      {% endif %}
+    </div>
+    <table style="width:100%">
+      <tr><td style="color:var(--text3);padding:6px 0;width:140px">IP Address</td>
+          <td class="ip-cell" style="font-size:16px;font-weight:700">{{ threat.ip_address }}</td></tr>
+      <tr><td style="color:var(--text3);padding:6px 0">Threat Score</td>
+          <td style="font-size:20px;font-weight:700;color:
+            {% if threat.score >= 80 %}var(--red)
+            {% elif threat.score >= 50 %}var(--orange)
+            {% elif threat.score >= 20 %}var(--yellow)
+            {% else %}var(--green){% endif %}">
+            {{ threat.score|floatformat:1 }}
+          </td></tr>
+      <tr><td style="color:var(--text3);padding:6px 0">Hack Probability</td>
+          <td>
+            {% with prob=threat.hack_probability %}
+            <div class="prob-bar" style="max-width:200px">
+              <div class="prob-track" style="flex:1">
+                <div class="prob-fill
+                  {% if prob >= 80 %}prob-crit
+                  {% elif prob >= 50 %}prob-high
+                  {% elif prob >= 25 %}prob-med
+                  {% else %}prob-low{% endif %}"
+                  style="width:{{ prob }}%"></div>
+              </div>
+              <strong>{{ prob }}%</strong>
+            </div>
+            {% endwith %}
+          </td></tr>
+      <tr><td style="color:var(--text3);padding:6px 0">Total Events</td>
+          <td>{{ threat.event_count }}</td></tr>
+      <tr><td style="color:var(--text3);padding:6px 0">First Seen</td>
+          <td>{{ threat.first_seen|date:"M d, Y H:i" }}</td></tr>
+      <tr><td style="color:var(--text3);padding:6px 0">Last Event</td>
+          <td>{{ threat.last_event|date:"M d, Y H:i" }}</td></tr>
+      {% if threat.location %}
+      <tr><td style="color:var(--text3);padding:6px 0">Location</td>
+          <td>{{ threat.location.city }}, {{ threat.location.country }}</td></tr>
+      <tr><td style="color:var(--text3);padding:6px 0">Coordinates</td>
+          <td style="font-size:12px">{{ threat.location.latitude }}, {{ threat.location.longitude }}</td></tr>
+      {% endif %}
+      {% if threat.is_blocked %}
+      <tr><td style="color:var(--text3);padding:6px 0">Block Reason</td>
+          <td style="color:var(--red)">{{ threat.block_reason }}</td></tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <!-- Actions + Event Breakdown -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Actions</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        {% if threat.is_blocked %}
+        <form method="post" action="{% url 'security_monitor:unblock_ip' threat.ip_address %}">
+          {% csrf_token %}
+          <button class="btn btn-success" style="width:100%">✓ Unblock IP</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'security_monitor:block_ip' threat.ip_address %}">
+          {% csrf_token %}
+          <div style="display:flex;gap:8px">
+            <input type="text" name="reason" class="form-control" style="flex:1"
+                   placeholder="Block reason...">
+            <button class="btn btn-danger" type="submit">🔒 Block</button>
+          </div>
+        </form>
+        {% endif %}
+
+        {% if whitelisted %}
+        <form method="post" action="{% url 'security_monitor:remove_whitelist' threat.ip_address %}">
+          {% csrf_token %}
+          <button class="btn btn-danger" style="width:100%">✕ Remove from Whitelist</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'security_monitor:whitelist_ip' threat.ip_address %}">
+          {% csrf_token %}
+          <div style="display:flex;gap:8px">
+            <input type="text" name="reason" class="form-control" style="flex:1"
+                   placeholder="Whitelist reason...">
+            <button class="btn btn-success" type="submit">✅ Whitelist</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Attack Breakdown</span></div>
+      <div class="chart-box"><canvas id="chartBreakdown"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Login Attempts -->
+{% if login_attempts %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-header"><span class="card-title">🔑 Login Attempts</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Time</th><th>Username</th><th>Result</th><th>User Agent</th></tr></thead>
+      <tbody>
+        {% for a in login_attempts %}
+        <tr>
+          <td style="color:var(--text3);font-size:12px">{{ a.timestamp|date:"M d H:i:s" }}</td>
+          <td style="font-family:monospace">{{ a.username }}</td>
+          <td>
+            {% if a.success %}
+              <span class="badge badge-low">✓ Success</span>
+            {% else %}
+              <span class="badge badge-critical">✗ Failed</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text3);font-size:11px;max-width:200px;
+                     overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ a.user_agent }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Full Event History -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Event History (last 100)</span>
+  </div>
+  <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Type</th><th>Severity</th><th>Path</th><th>Score Δ</th></tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td style="color:var(--text3);font-size:12px;white-space:nowrap">
+            {{ e.timestamp|date:"M d H:i:s" }}
+          </td>
+          <td>{{ e.get_event_type_display }}</td>
+          <td><span class="badge badge-{{ e.severity }}">{{ e.severity }}</span></td>
+          <td class="path-cell" title="{{ e.path }}">{{ e.path }}</td>
+          <td style="color:var(--red)">
+            {% if e.threat_score_delta %}+{{ e.threat_score_delta|floatformat:0 }}{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">
+          No events for this IP
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const bd = {{ event_breakdown_json|safe }};
+if (bd.length) {
+  new Chart(document.getElementById('chartBreakdown'), {
+    type: 'bar',
+    data: {
+      labels: bd.map(d => d.event_type),
+      datasets: [{
+        data: bd.map(d => d.count),
+        backgroundColor: '#f85149',
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6e7681' }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#6e7681' }, grid: { color: '#21262d' }, beginAtZero: true },
+      },
+    },
+  });
+}
+</script>
+{% endblock %}

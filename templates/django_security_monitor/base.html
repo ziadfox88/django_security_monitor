@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{% block title %}Security Monitor{% endblock %} — SIEM</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg0:#0d1117;--bg1:#161b22;--bg2:#21262d;--bg3:#2d333b;
+    --border:#30363d;--text1:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+    --blue:#58a6ff;--green:#3fb950;--yellow:#d29922;
+    --orange:#e3b341;--red:#f85149;--purple:#bc8cff;--cyan:#39d353;
+    --radius:8px;--sidebar-w:230px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg0);color:var(--text1);font-family:'Segoe UI',system-ui,sans-serif;
+       font-size:14px;display:flex;min-height:100vh}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ── Sidebar ── */
+  .sidebar{width:var(--sidebar-w);background:var(--bg1);border-right:1px solid var(--border);
+           display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+  .sidebar-brand{padding:20px 16px;border-bottom:1px solid var(--border);
+                 display:flex;align-items:center;gap:10px}
+  .sidebar-brand .logo{width:32px;height:32px;background:linear-gradient(135deg,var(--red),var(--purple));
+                       border-radius:6px;display:flex;align-items:center;justify-content:center;
+                       font-size:16px}
+  .sidebar-brand span{font-weight:700;font-size:15px;color:var(--text1)}
+  .sidebar-brand small{display:block;color:var(--text3);font-size:11px;font-weight:400}
+  .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+  .nav-section{padding:8px 16px 4px;color:var(--text3);font-size:11px;
+               font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+  .nav-link{display:flex;align-items:center;gap:10px;padding:8px 16px;
+            color:var(--text2);transition:all .15s;cursor:pointer}
+  .nav-link:hover,.nav-link.active{background:var(--bg2);color:var(--text1);text-decoration:none}
+  .nav-link.active{border-left:3px solid var(--blue);padding-left:13px}
+  .nav-link .icon{width:18px;text-align:center;font-size:15px}
+  .nav-badge{margin-left:auto;background:var(--red);color:#fff;
+             font-size:10px;padding:1px 6px;border-radius:20px;font-weight:700}
+  .sidebar-footer{padding:12px 16px;border-top:1px solid var(--border);
+                  color:var(--text3);font-size:11px}
+
+  /* ── Main ── */
+  .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+  .topbar{background:var(--bg1);border-bottom:1px solid var(--border);
+          padding:12px 24px;display:flex;align-items:center;justify-content:space-between;
+          position:sticky;top:0;z-index:50}
+  .topbar-title{font-size:16px;font-weight:600}
+  .topbar-right{display:flex;align-items:center;gap:16px;color:var(--text2);font-size:12px}
+  .live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;
+            animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .content{padding:24px;flex:1}
+
+  /* ── Cards ── */
+  .card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .card-header{display:flex;align-items:center;justify-content:space-between;
+               margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;
+              letter-spacing:.06em}
+
+  /* ── Stats grid ── */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+  .stat-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);
+             padding:16px;position:relative;overflow:hidden}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .stat-card.blue::before{background:var(--blue)}
+  .stat-card.red::before{background:var(--red)}
+  .stat-card.orange::before{background:var(--orange)}
+  .stat-card.green::before{background:var(--green)}
+  .stat-card.purple::before{background:var(--purple)}
+  .stat-card.cyan::before{background:var(--cyan)}
+  .stat-value{font-size:28px;font-weight:700;line-height:1}
+  .stat-label{color:var(--text2);font-size:12px;margin-top:6px}
+
+  /* ── Tables ── */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:8px 12px;color:var(--text3);font-size:11px;font-weight:600;
+     text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+  td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg2)}
+
+  /* ── Badges ── */
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-critical{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+  .badge-high{background:rgba(227,179,65,.15);color:var(--orange);border:1px solid rgba(227,179,65,.3)}
+  .badge-medium{background:rgba(210,153,34,.15);color:var(--yellow);border:1px solid rgba(210,153,34,.3)}
+  .badge-low{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+  .badge-info{background:rgba(88,166,255,.15);color:var(--blue);border:1px solid rgba(88,166,255,.3)}
+  .badge-blocked{background:rgba(248,81,73,.2);color:var(--red)}
+  .badge-safe{background:rgba(63,185,80,.2);color:var(--green)}
+
+  /* ── Probability bar ── */
+  .prob-bar{display:flex;align-items:center;gap:8px;min-width:120px}
+  .prob-track{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+  .prob-fill{height:100%;border-radius:3px;transition:width .3s}
+  .prob-low{background:var(--green)}
+  .prob-med{background:var(--yellow)}
+  .prob-high{background:var(--orange)}
+  .prob-crit{background:var(--red)}
+
+  /* ── Buttons ── */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;
+       border:1px solid var(--border);background:var(--bg2);color:var(--text1);
+       font-size:12px;cursor:pointer;transition:all .15s}
+  .btn:hover{background:var(--bg3);border-color:var(--text3)}
+  .btn-danger{background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.4);color:var(--red)}
+  .btn-danger:hover{background:rgba(248,81,73,.2)}
+  .btn-success{background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.4);color:var(--green)}
+  .btn-success:hover{background:rgba(63,185,80,.2)}
+  .btn-primary{background:rgba(88,166,255,.1);border-color:rgba(88,166,255,.4);color:var(--blue)}
+  .btn-primary:hover{background:rgba(88,166,255,.2)}
+
+  /* ── Forms / inputs ── */
+  .form-control{background:var(--bg2);border:1px solid var(--border);border-radius:6px;
+                color:var(--text1);padding:6px 10px;font-size:13px}
+  .form-control:focus{outline:none;border-color:var(--blue)}
+  select.form-control option{background:var(--bg1)}
+
+  /* ── Grid layouts ── */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+  /* ── Alerts ── */
+  .alert{padding:10px 16px;border-radius:var(--radius);margin-bottom:16px;font-size:13px}
+  .alert-success{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);color:var(--green)}
+  .alert-error{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);color:var(--red)}
+
+  /* ── Code / path ── */
+  .path-cell{font-family:monospace;font-size:12px;color:var(--cyan);
+             max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ip-cell{font-family:monospace;font-size:12px;color:var(--text1)}
+
+  /* ── Live feed ── */
+  #live-feed tr{animation:fadeIn .4s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+  /* ── Charts ── */
+  .chart-box{position:relative;height:220px}
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">🛡</div>
+    <div>
+      <span>SIEM Monitor</span>
+      <small>Security Dashboard</small>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Overview</div>
+    <a href="{% url 'security_monitor:dashboard' %}"
+       class="nav-link {% if page == 'dashboard' %}active{% endif %}">
+      <span class="icon">📊</span> Dashboard
+    </a>
+
+    <div class="nav-section">Security</div>
+    <a href="{% url 'security_monitor:events' %}"
+       class="nav-link {% if page == 'events' %}active{% endif %}">
+      <span class="icon">⚡</span> Security Events
+      {% if critical_count %}<span class="nav-badge">{{ critical_count }}</span>{% endif %}
+    </a>
+    <a href="{% url 'security_monitor:threats' %}"
+       class="nav-link {% if page == 'threats' %}active{% endif %}">
+      <span class="icon">🎯</span> Threat IPs
+    </a>
+
+    <div class="nav-section">Traffic</div>
+    <a href="{% url 'security_monitor:visitors' %}"
+       class="nav-link {% if page == 'visitors' %}active{% endif %}">
+      <span class="icon">👥</span> Visitors
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    🔒 Superuser access only<br>
+    v1.0.0 · django-siem
+  </div>
+</aside>
+
+<!-- ── Main ────────────────────────────────────────────────── -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">{% block topbar_title %}Security Monitor{% endblock %}</div>
+    <div class="topbar-right">
+      <span class="live-dot"></span> Live
+      <span id="live-clock"></span>
+      <span>{{ request.user.username }}</span>
+    </div>
+  </div>
+
+  <div class="content">
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script>
+// Live clock
+function tick(){
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleTimeString('en-GB');
+}
+setInterval(tick, 1000); tick();
+
+// CSRF helper for fetch POSTs
+function getCookie(name) {
+  const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return v ? v.pop() : '';
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

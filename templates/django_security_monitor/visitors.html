@@ -1,0 +1,69 @@
+{% extends "django_security_monitor/base.html" %}
+{% block title %}Visitors{% endblock %}
+{% block topbar_title %}👥 Visitor Tracking{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      All Visitors
+      <span style="color:var(--text3);font-weight:400">({{ page_obj.paginator.count }})</span>
+    </span>
+    <form method="get" style="display:flex;gap:8px">
+      <input type="text" name="ip" class="form-control" placeholder="Filter by IP..."
+             value="{{ request.GET.ip }}">
+      <button type="submit" class="btn">🔍</button>
+    </form>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>IP</th><th>User</th><th>Visits</th><th>Location</th>
+          <th>First Visit</th><th>Last Visit</th><th>User Agent</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in page_obj %}
+        <tr>
+          <td class="ip-cell">
+            <a href="{% url 'security_monitor:ip_detail' v.ip_address %}">{{ v.ip_address }}</a>
+          </td>
+          <td style="color:var(--blue)">{{ v.user.username|default:"—" }}</td>
+          <td style="font-weight:600">{{ v.visit_count }}</td>
+          <td style="color:var(--text3);font-size:12px">
+            {% if v.location %}
+              {{ v.location.city|default:"" }}{% if v.location.city %}, {% endif %}{{ v.location.country_code|default:"" }}
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:var(--text3);font-size:12px">{{ v.first_visit|date:"M d, Y" }}</td>
+          <td style="color:var(--text3);font-size:12px">{{ v.last_visit|date:"M d H:i" }}</td>
+          <td style="color:var(--text3);font-size:11px;max-width:200px;
+                     overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ v.user_agent|default:"—" }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">
+          No visitors yet
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:8px;padding:14px;justify-content:center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&ip={{ request.GET.ip }}" class="btn">← Prev</a>
+    {% endif %}
+    <span style="padding:6px 12px;color:var(--text2)">
+      {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&ip={{ request.GET.ip }}" class="btn">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

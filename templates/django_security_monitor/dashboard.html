@@ -1,0 +1,287 @@
+{% extends "django_security_monitor/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block topbar_title %}📊 Security Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ── Stat Cards ────────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-value" id="st-events">{{ stats.events_today }}</div>
+    <div class="stat-label">Events Today</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-value" id="st-critical">{{ stats.critical_today }}</div>
+    <div class="stat-label">Critical Today</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-value" id="st-blocked">{{ stats.blocked_ips }}</div>
+    <div class="stat-label">Blocked IPs</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-value" id="st-threats">{{ stats.active_threats }}</div>
+    <div class="stat-label">Active Threats</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-value">{{ stats.total_visitors }}</div>
+    <div class="stat-label">Total Visitors</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-value">{{ stats.honeypot_hits }}</div>
+    <div class="stat-label">Honeypot Hits Today</div>
+  </div>
+</div>
+
+<!-- ── Charts Row ────────────────────────────────────────── -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Event Types — Last 7 Days</span>
+    </div>
+    <div class="chart-box"><canvas id="chartTypes"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Events Timeline — Last 7 Days</span>
+    </div>
+    <div class="chart-box"><canvas id="chartTimeline"></canvas></div>
+  </div>
+</div>
+
+<!-- ── Live Feed + Top Threats ───────────────────────────── -->
+<div class="grid-2" style="margin-bottom:16px">
+
+  <!-- Live Event Feed -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚡ Live Security Feed</span>
+      <span style="color:var(--text3);font-size:11px">Auto-refreshes every 15s</span>
+    </div>
+    <div class="table-wrap" style="max-height:340px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th><th>IP</th><th>Event</th><th>Severity</th><th>Path</th>
+          </tr>
+        </thead>
+        <tbody id="live-feed">
+          {% for e in recent_events %}
+          <tr>
+            <td style="color:var(--text3);white-space:nowrap">{{ e.timestamp|date:"H:i:s" }}</td>
+            <td class="ip-cell">
+              <a href="{% url 'security_monitor:ip_detail' e.ip_address %}">{{ e.ip_address }}</a>
+            </td>
+            <td>{{ e.get_event_type_display }}
+                  {% if e.extra_data.superuser_test %}
+                    <span style="font-size:10px;color:var(--purple);
+                                background:rgba(188,140,255,.1);
+                                padding:1px 5px;border-radius:4px;
+                                border:1px solid rgba(188,140,255,.3)">
+                      🧪 TEST
+                    </span>
+                  {% endif %}
+
+            </td>
+            <td><span class="badge badge-{{ e.severity }}">{{ e.severity }}</span></td>
+            <td class="path-cell" title="{{ e.path }}">{{ e.path }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">
+            ✅ No security events yet
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px">
+      <a href="{% url 'security_monitor:events' %}" class="btn btn-primary">View All Events →</a>
+    </div>
+  </div>
+
+  <!-- Top Threat IPs -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🎯 Top Threat IPs</span>
+      <a href="{% url 'security_monitor:threats' %}" style="font-size:11px">View All</a>
+    </div>
+    <div class="table-wrap" style="max-height:340px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr><th>IP</th><th>Hack Probability</th><th>Score</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for t in top_threats %}
+          {% with prob=t.hack_probability %}
+          <tr>
+            <td class="ip-cell">
+              <a href="{% url 'security_monitor:ip_detail' t.ip_address %}">{{ t.ip_address }}</a>
+            </td>
+            <td>
+              <div class="prob-bar">
+                <div class="prob-track">
+                  <div class="prob-fill
+                    {% if prob >= 80 %}prob-crit
+                    {% elif prob >= 50 %}prob-high
+                    {% elif prob >= 25 %}prob-med
+                    {% else %}prob-low{% endif %}"
+                    style="width:{{ prob }}%"></div>
+                </div>
+                <span style="font-size:11px;white-space:nowrap;color:var(--text2)">{{ prob }}%</span>
+              </div>
+            </td>
+            <td style="font-weight:600">{{ t.score|floatformat:0 }}</td>
+            <td>
+              {% if t.is_blocked %}
+                <span class="badge badge-blocked">🔒 Blocked</span>
+              {% else %}
+                <span class="badge badge-{{ t.risk_level }}">{{ t.risk_level }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">
+            No threats recorded
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Top Attacked Paths ─────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🔥 Most Attacked Paths — Last 7 Days</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Path</th><th>Attack Count</th><th>Bar</th></tr>
+      </thead>
+      <tbody>
+        {% for p in top_paths %}
+        <tr>
+          <td class="path-cell" title="{{ p.path }}">{{ p.path }}</td>
+          <td style="font-weight:600;color:var(--red)">{{ p.count }}</td>
+          <td style="width:200px">
+            {% with top_paths.0.count as max_count %}
+            <div class="prob-track" style="width:100%">
+              <div class="prob-fill prob-crit"
+                   style="width:{% widthratio p.count max_count 100 %}%"></div>
+            </div>
+            {% endwith %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" style="color:var(--text3);padding:16px;text-align:center">
+          No data yet
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Parse server-side JSON ────────────────────────────────
+const typeData  = {{ events_by_type_json|safe }};
+const timeData  = {{ events_per_day_json|safe }};
+
+const COLORS = [
+  '#f85149','#e3b341','#58a6ff','#3fb950',
+  '#bc8cff','#39d353','#ff7b72','#ffa657',
+];
+
+// ── Donut: Event Types ────────────────────────────────────
+new Chart(document.getElementById('chartTypes'), {
+  type: 'doughnut',
+  data: {
+    labels: typeData.map(d => d.event_type),
+    datasets: [{
+      data: typeData.map(d => d.count),
+      backgroundColor: COLORS,
+      borderColor: '#21262d',
+      borderWidth: 2,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12, padding: 10 },
+      },
+    },
+  },
+});
+
+// ── Line: Events over time ────────────────────────────────
+new Chart(document.getElementById('chartTimeline'), {
+  type: 'line',
+  data: {
+    labels: timeData.map(d => d.date),
+    datasets: [{
+      label: 'Events',
+      data: timeData.map(d => d.count),
+      borderColor: '#f85149',
+      backgroundColor: 'rgba(248,81,73,.1)',
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: '#f85149',
+      pointRadius: 4,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#6e7681' }, grid: { color: '#21262d' } },
+      y: { ticks: { color: '#6e7681' }, grid: { color: '#21262d' }, beginAtZero: true },
+    },
+  },
+});
+
+// ── Live polling ──────────────────────────────────────────
+let lastId = 0;
+const feed = document.getElementById('live-feed');
+const sev_colors = {
+  critical:'badge-critical',high:'badge-high',
+  medium:'badge-medium',low:'badge-low',info:'badge-info',
+};
+
+async function pollEvents() {
+  try {
+    const res = await fetch(`{% url 'security_monitor:live_events' %}?since=${lastId}`);
+    const data = await res.json();
+    if (data.events.length) {
+      lastId = data.events[0].id;
+      data.events.forEach(e => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="color:var(--text3);white-space:nowrap">${e.timestamp}</td>
+          <td class="ip-cell"><a href="/{% url 'security_monitor:threats' %}${e.ip}/">${e.ip}</a></td>
+          <td>${e.type}</td>
+          <td><span class="badge ${sev_colors[e.severity]||''}">${e.severity}</span></td>
+          <td class="path-cell" title="${e.path}">${e.path}</td>`;
+        feed.prepend(tr);
+      });
+      // Keep max 30 rows
+      while (feed.children.length > 30) feed.removeChild(feed.lastChild);
+    }
+
+    // Update stat cards
+    const stats = await (await fetch('{% url "security_monitor:stats_api" %}')).json();
+    document.getElementById('st-events').textContent   = stats.events_today;
+    document.getElementById('st-critical').textContent = stats.critical_today;
+    document.getElementById('st-blocked').textContent  = stats.blocked_ips;
+    document.getElementById('st-threats').textContent  = stats.active_threats;
+  } catch(e) { console.warn('Poll error', e); }
+}
+setInterval(pollEvents, 15000);
+</script>
+{% endblock %}

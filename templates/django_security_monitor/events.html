@@ -1,0 +1,219 @@
+{% extends "django_security_monitor/base.html" %} {% block title %}Security
+Events{% endblock %} {% block topbar_title %}⚡ Security Events{% endblock %} {% block content %}
+<!-- Filters -->
+<div class="card" style="margin-bottom: 16px">
+  <form
+    method="get"
+    style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end"
+  >
+    <div>
+      <label
+        style="
+          color: var(--text3);
+          font-size: 11px;
+          display: block;
+          margin-bottom: 4px;
+        "
+        >SEVERITY</label
+      >
+      <select name="severity" class="form-control">
+        <option value="">All</option>
+        {% for val, label in severities %}
+        <option
+          value="{{ val }}"
+          {%
+          if
+          current_filters.severity=""
+          ="val"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label
+        style="
+          color: var(--text3);
+          font-size: 11px;
+          display: block;
+          margin-bottom: 4px;
+        "
+        >TYPE</label
+      >
+      <select name="event_type" class="form-control">
+        <option value="">All</option>
+        {% for val, label in event_types %}
+        <option
+          value="{{ val }}"
+          {%
+          if
+          current_filters.event_type=""
+          ="val"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label
+        style="
+          color: var(--text3);
+          font-size: 11px;
+          display: block;
+          margin-bottom: 4px;
+        "
+        >IP ADDRESS</label
+      >
+      <input
+        type="text"
+        name="ip"
+        class="form-control"
+        placeholder="e.g. 192.168.1.1"
+        value="{{ current_filters.ip }}"
+      />
+    </div>
+    <div>
+      <label
+        style="
+          color: var(--text3);
+          font-size: 11px;
+          display: block;
+          margin-bottom: 4px;
+        "
+        >PERIOD</label
+      >
+      <select name="days" class="form-control">
+        {% for d in period_options %}
+        <option
+          value="{{ d }}"
+          {%
+          if
+          current_filters.days=""
+          ="d"
+          %}selected{%
+          endif
+          %}
+        >
+          Last {{ d }} day{{ d|pluralize }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">🔍 Filter</button>
+    <a href="{% url 'security_monitor:events' %}" class="btn">✕ Clear</a>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      Security Events
+      <span style="color: var(--text3); font-weight: 400"
+        >({{ page_obj.paginator.count }} total)</span
+      >
+    </span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>IP</th>
+          <th>Type</th>
+          <th>Severity</th>
+          <th>Method</th>
+          <th>Path</th>
+          <th>Score Δ</th>
+          <th>User</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in page_obj %}
+        <tr>
+          <td style="color: var(--text3); white-space: nowrap; font-size: 12px">
+            {{ e.timestamp|date:"M d H:i:s" }}
+          </td>
+          <td class="ip-cell">
+            <a href="{% url 'security_monitor:ip_detail' e.ip_address %}"
+              >{{ e.ip_address }}</a
+            >
+          </td>
+          <td>{{ e.get_event_type_display }}
+              {% if e.extra_data.superuser_test %}
+                <span style="font-size:10px;color:var(--purple);
+                            background:rgba(188,140,255,.1);
+                            padding:1px 5px;border-radius:4px;
+                            border:1px solid rgba(188,140,255,.3)">
+                  🧪 TEST
+                </span>
+              {% endif %}
+
+          </td>
+          <td>
+            <span class="badge badge-{{ e.severity }}">{{ e.severity }}</span>
+          </td>
+          <td>
+            <span style="color: var(--text3); font-size: 11px"
+              >{{ e.method }}</span
+            >
+          </td>
+          <td class="path-cell" title="{{ e.path }}">{{ e.path }}</td>
+          <td style="color: var(--red); font-weight: 600">
+            {% if e.threat_score_delta %}+{{ e.threat_score_delta|floatformat:0}}{% endif %}
+          </td>
+          <td style="color: var(--text3)">{{ e.user.username|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td
+            colspan="8"
+            style="text-align: center; padding: 32px; color: var(--text3)"
+          >
+            ✅ No events match your filters
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div
+    style="
+      display: flex;
+      gap: 8px;
+      padding: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    "
+  >
+    {% if page_obj.has_previous %}
+    <a
+      href="?page={{ page_obj.previous_page_number }}&severity={{ current_filters.severity }}&event_type={{ current_filters.event_type }}&ip={{ current_filters.ip }}&days={{ current_filters.days }}"
+      class="btn"
+      >← Prev</a
+    >
+    {% endif %}
+    <span style="padding: 6px 12px; color: var(--text2)">
+      Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a
+      href="?page={{ page_obj.next_page_number }}&severity={{ current_filters.severity }}&event_type={{ current_filters.event_type }}&ip={{ current_filters.ip }}&days={{ current_filters.days }}"
+      class="btn"
+      >Next →</a
+    >
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

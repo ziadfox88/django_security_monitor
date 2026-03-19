@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-security-monitor"
+version = "0.1.0"
+description = "A Django app for security monitoring and SIEM integration"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Ziad Ali", email = "ziadfox88@gmail.com" }
+]
+keywords = ["django", "security", "siem", "monitoring"]
+classifiers = [
+    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring"
+]
+dependencies = [
+    "Django>=4.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/ziadfox88/django_security_monitor"
+Repository = "https://github.com/ziadfox88/django_security_monitor"
+Issues = "https://github.com/ziadfox88/django_security_monitor/issues"
+
+[tool.setuptools]
+packages = ["django_security_monitor"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["templates/**/*", "static/**/*", "README.md", "LICENSE"]

@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+recursive-include django_security_monitor/templates *
+recursive-include django_security_monitor/static *
+recursive-include django_security_monitor/migrations *
+exclude *.pyc
+exclude __pycache__

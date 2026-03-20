@@ -35,12 +35,16 @@ def on_login_failed(sender, credentials, request, **kwargs):
         ip_address=ip, username=username, success=False, user_agent=ua
     )
 
-    window_start = timezone.now() - timedelta(seconds=monitor_settings.LOGIN_ATTEMPT_WINDOW)
-    failures = LoginAttempt.objects.filter(
-        ip_address=ip, success=False, timestamp__gte=window_start
-    ).count()
+    if monitor_settings.LOGIN_ATTEMPT_WINDOW is None:
+        # If disabled, just log the single failure as an auth_failure
+        failures = 0
+    else:
+        window_start = timezone.now() - timedelta(seconds=monitor_settings.LOGIN_ATTEMPT_WINDOW)
+        failures = LoginAttempt.objects.filter(
+            ip_address=ip, success=False, timestamp__gte=window_start
+        ).count()
 
-    if failures >= monitor_settings.MAX_LOGIN_ATTEMPTS:
+    if monitor_settings.MAX_LOGIN_ATTEMPTS is not None and failures >= monitor_settings.MAX_LOGIN_ATTEMPTS:
         SecurityEvent.objects.create(
             ip_address=ip,
             event_type='brute_force',
@@ -104,6 +108,7 @@ def _bump_score(ip, delta, is_superuser=False):
 
     if (
         monitor_settings.AUTO_BLOCK
+        and monitor_settings.BLOCK_THRESHOLD is not None
         and threat.score >= monitor_settings.BLOCK_THRESHOLD
         and not threat.is_blocked
     ):

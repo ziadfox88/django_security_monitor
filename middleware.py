@@ -152,6 +152,8 @@ class SecurityMonitorMiddleware:
 
     # ── rate limiting ───────────────────────────────────────────────────────
     def _rate_redis(self, ip, request):
+        if monitor_settings.RATE_LIMIT is None or monitor_settings.RATE_LIMIT_WINDOW is None:
+            return
         from django.core.cache import cache
         key = f'sm_rl_{ip}'
         count = cache.get(key, 0)
@@ -164,6 +166,8 @@ class SecurityMonitorMiddleware:
                 self._log(ip, request, 'rate_limit', 'medium', w.get('rate_limit', 10))
 
     def _rate_db(self, ip, request):
+        if monitor_settings.RATE_LIMIT is None or monitor_settings.RATE_LIMIT_WINDOW is None:
+            return
         from datetime import timedelta
         window_start = timezone.now() - timedelta(seconds=monitor_settings.RATE_LIMIT_WINDOW)
         count = SecurityEvent.objects.filter(
@@ -218,6 +222,7 @@ class SecurityMonitorMiddleware:
 
         if (
             monitor_settings.AUTO_BLOCK
+            and monitor_settings.BLOCK_THRESHOLD is not None
             and threat.score >= monitor_settings.BLOCK_THRESHOLD
             and not threat.is_blocked
         ):

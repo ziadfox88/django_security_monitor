@@ -7,7 +7,7 @@ name = "django-security-monitor"
 version = "0.1.0"
 description = "A Django app for security monitoring and SIEM integration"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
     { name = "Ziad Ali", email = "ziadfox88@gmail.com" }
 ]
@@ -15,7 +15,6 @@ keywords = ["django", "security", "siem", "monitoring"]
 classifiers = [
     "Framework :: Django",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Security",
     "Topic :: System :: Monitoring"
@@ -31,6 +30,7 @@ Issues = "https://github.com/ziadfox88/django_security_monitor/issues"
 
 [tool.setuptools]
 packages = ["django_security_monitor"]
+package-dir = {"django_security_monitor" = "."}
 include-package-data = true
 
 [tool.setuptools.package-data]

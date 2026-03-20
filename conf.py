@@ -19,11 +19,11 @@ DEFAULTS = {
         '/phpinfo.php', '/server-status', '/admin.php',
         '/shell.php', '/c99.php', '/r57.php',
     ],
-    'BLOCK_THRESHOLD': 50,
-    'RATE_LIMIT': 200,
-    'RATE_LIMIT_WINDOW': 60,
-    'MAX_LOGIN_ATTEMPTS': 5,
-    'LOGIN_ATTEMPT_WINDOW': 300,
+    'BLOCK_THRESHOLD': None,
+    'RATE_LIMIT': None,
+    'RATE_LIMIT_WINDOW': None,
+    'MAX_LOGIN_ATTEMPTS': None,
+    'LOGIN_ATTEMPT_WINDOW': None,
     'USE_REDIS': None,              # None = auto-detect
     'USE_CELERY': None,             # None = auto-detect
     'DASHBOARD_URL': 'security-monitor/',

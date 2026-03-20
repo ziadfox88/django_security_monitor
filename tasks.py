@@ -10,7 +10,7 @@ if is_celery_available():
     from django.utils import timezone
     from django.core.mail import send_mail
     from django.conf import settings
-    from .models import SecurityEvent, ThreatScore, PageView
+    from .models import SecurityEvent, ThreatScore
     from .conf import monitor_settings
 
     @shared_task(name='security_monitor.cleanup_old_events')
@@ -57,14 +57,11 @@ if is_celery_available():
             last_event__lt=cutoff, is_blocked=False, score__gt=0
         ).update(score=F('score') * 0.9)
         return f"Decayed scores for {updated} IPs"
-
+    # tasks.py
     @shared_task(name='security_monitor.log_pageview_async')
     def log_pageview_async(visitor_id, path, method, status_code, response_time_ms):
+        from .models import PageView
         PageView.objects.create(
             visitor_id=visitor_id, path=path, method=method,
             status_code=status_code, response_time_ms=response_time_ms,
         )
-else:
-    def log_pageview_async(*args, **kwargs):
-        # Dummy fallback
-        pass

@@ -95,9 +95,20 @@ beautiful dark-mode dashboard — all from inside your Django project.
 
 ### 1. Copy the app into your project
 
+Using pip
+```bash
+pip install django-security-monitor
+```
+OR
+Using git
+```bash
+git clone https://github.com/ziadfox88/django_security_monitor.git
+```
+
 ```bash
 # Clone or download, then copy the folder
 cp -r django_security_monitor/ /your/project/
+
 ##########################################################################
 2. Install dependencies
 # Required

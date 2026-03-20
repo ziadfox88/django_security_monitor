@@ -60,3 +60,12 @@ class VisitorAdmin(admin.ModelAdmin):
     list_display = ('ip_address', 'user', 'visit_count', 'first_visit', 'last_visit')
     search_fields = ('ip_address',)
     readonly_fields = ('first_visit', 'last_visit')
+
+
+@admin.register(PageView)
+class PageViewAdmin(admin.ModelAdmin):
+    list_display = ('visitor','timestamp', 'path', 'method', 'status_code', 'response_time_ms')
+    list_filter = ('status_code', 'method')
+    search_fields = ('path',)
+    readonly_fields = ('timestamp',)
+    ordering = ('-timestamp',)

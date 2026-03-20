@@ -590,7 +590,7 @@ GeoIP lookup runs on first visit (disk read) but is negligible after that
 At high traffic without Celery, the SecurityEvent table grows fast
 ```
 
-
+```bash
 
 ########################################################################
 ❓ FAQ

@@ -14,7 +14,7 @@ from .models import (
     Visitor, PageView, SecurityEvent,
     ThreatScore, IPWhitelist, HoneypotHit
 )
-from .conf import monitor_settings, is_redis_available
+from .conf import monitor_settings, is_redis_available,is_celery_available
 
 logger = logging.getLogger('django_security_monitor')
 
@@ -318,12 +318,23 @@ class VisitorTrackingMiddleware:
         elapsed = int((time.time() - t0) * 1000)
 
         # 8. Log the page view
-        PageView.objects.create(
-            visitor=visitor,
-            path=request.path[:500],
-            method=request.method,
-            status_code=response.status_code,
-            response_time_ms=elapsed,
+        if is_celery_available():
+            from .tasks import log_pageview_async
+
+            log_pageview_async.delay(
+                visitor_id=visitor.pk,
+                path=request.path[:500],
+                method=request.method,
+                status_code=response.status_code,
+                response_time_ms=elapsed,
+            )
+        else:
+            PageView.objects.create(
+                visitor=visitor,
+                path=request.path[:500],
+                method=request.method,
+                status_code=response.status_code,
+                response_time_ms=elapsed,
         )
 
         return response

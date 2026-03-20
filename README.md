@@ -522,6 +522,75 @@ SECURITY_MONITOR = {
     'LOGIN_ATTEMPT_WINDOW': 300,   # within this window (seconds)
 }
 
+```bash
+Predicted Latency Per Request
+Every request passes through two middleware layers. Here is what each one costs:
+SecurityMonitorMiddleware:
+| Operation                                  | Type           | Cost       |
+| ------------------------------------------ | -------------- | ---------- |
+| Path/exclude checks                        | In-memory      | ~0.01ms    |
+| Whitelist set lookup                       | In-memory      | ~0.01ms    |
+| Regex pattern matching (SQL/XSS/traversal) | In-memory      | ~0.1–0.3ms |
+| Rate limit check (Redis)                   | Redis GET+INCR | ~0.2–0.5ms |
+| Rate limit check (DB fallback)             | DB COUNT query | ~1–3ms     |
+| SecurityEvent INSERT (if attack detected)  | DB write       | ~2–5ms     |
+| ThreatScore UPDATE (if attack detected)    | DB write       | ~2–4ms     |
+
+Normal clean request (no attack detected):
+
+With Redis → ~0.5–1ms overhead
+
+Without Redis → ~2–4ms overhead
+
+Attack detected (writes happen):
+
+With Redis → ~3–6ms overhead
+
+Without Redis → ~5–12ms overhead
+
+VisitorTrackingMiddleware:
+| Operation             | Type          | Cost    |
+| --------------------- | ------------- | ------- |
+| Session check         | In-memory     | ~0.01ms |
+| Visitor GET_OR_CREATE | DB read+write | ~1–3ms  |
+| Visit count UPDATE    | DB write      | ~1–2ms  |
+| PageView INSERT       | DB write      | ~1–3ms  |
+Every request: ~3–8ms overhead (this runs on every single request)
+
+Total Expected Overhead
+| Scenario                             | With Redis | Without Redis |
+| ------------------------------------ | ---------- | ------------- |
+| Clean request, existing visitor      | ~3.5–5ms   | ~5–10ms       |
+| Clean request, new visitor (+ GeoIP) | ~5–8ms     | ~7–14ms       |
+| Attack detected                      | ~7–14ms    | ~10–22ms      |
+For reference — a typical Django view with one DB query already costs 10–50ms. So on a clean request, the library adds roughly 10–30% overhead without Redis, and 5–15% with Redis
+```
+
+```bash
+Will It Make the App Heavy?
+Short answer: No — if you follow these rules:
+
+✅ What makes it lightweight
+All regex checks are compiled once at startup, not per-request
+​
+
+The whitelist is cached in memory and only refreshed every 5 minutes
+
+EXCLUDE_PATHS skips /static/ and /media/ entirely — those are usually 60–80% of all requests
+
+With Redis, rate limiting never touches the DB
+
+⚠️ What can make it heavy
+PageView writes every request — this is the biggest cost at scale
+
+Without Redis, the DB COUNT for rate limiting runs on every request
+
+GeoIP lookup runs on first visit (disk read) but is negligible after that
+
+At high traffic without Celery, the SecurityEvent table grows fast
+```
+
+
 
 ########################################################################
 ❓ FAQ

@@ -99,6 +99,7 @@ def dashboard(request):
         'severity_counts': severity_counts,
         'top_paths': top_paths,
         'page': 'dashboard',
+        'monitor_settings': monitor_settings,
     }
     return render(request, 'django_security_monitor/dashboard.html', context)
 
@@ -141,6 +142,7 @@ def events_list(request):
             'ip': ip, 'days': days,
         },
         'page': 'events',
+        'monitor_settings': monitor_settings,
     }
     return render(request, 'django_security_monitor/events.html', context)
 
@@ -163,6 +165,7 @@ def threats_list(request):
         'page_obj': page_obj,
         'show': show,
         'page': 'threats',
+        'monitor_settings': monitor_settings,
     }
     return render(request, 'django_security_monitor/threats.html', context)
 
@@ -192,6 +195,7 @@ def ip_detail(request, ip_address):
         'whitelisted': whitelisted,
         'event_breakdown_json': json.dumps(event_breakdown),
         'page': 'threats',
+        'monitor_settings': monitor_settings,
     }
     return render(request, 'django_security_monitor/ip_detail.html', context)
 
@@ -211,6 +215,7 @@ def visitors_list(request):
     context = {
         'page_obj': page_obj,
         'page': 'visitors',
+        'monitor_settings': monitor_settings,
     }
     return render(request, 'django_security_monitor/visitors.html', context)
 
@@ -276,7 +281,10 @@ def delete_event(request, event_id):
 # ── JSON APIs (for live polling) ──────────────────────────────────────────────
 @security_monitor_required
 def live_events(request):
-    since_id = request.GET.get('since', 0)
+    try:
+        since_id = int(request.GET.get('since', 0))
+    except (ValueError, TypeError):
+        since_id = 0
     events = SecurityEvent.objects.filter(pk__gt=since_id).order_by('-timestamp')[:20]
     data = [
         {

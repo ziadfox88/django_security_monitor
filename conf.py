@@ -50,6 +50,7 @@ DEFAULTS = {
         'blocked_ip': 0,
     },
     'AUTO_BLOCK': False,
+    'BACK_URL': None,
 }
 
 
@@ -76,6 +77,19 @@ class _SecurityMonitorSettings:
             return getattr(self, name)
         except AttributeError:
             return default
+
+    @property
+    def resolved_back_url(self):
+        url = self.BACK_URL
+        if not url:
+            return None
+        if '/' in url or '.' in url:  # Likely a path or external URL
+            return url
+        try:
+            from django.urls import reverse
+            return reverse(url)
+        except Exception:
+            return url
 
 
 monitor_settings = _SecurityMonitorSettings()

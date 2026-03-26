@@ -21,13 +21,7 @@ Events{% endblock %} {% block topbar_title %}⚡ Security Events{% endblock %} {
         {% for val, label in severities %}
         <option
           value="{{ val }}"
-          {%
-          if
-          current_filters.severity=""
-          ="val"
-          %}selected{%
-          endif
-          %}
+          {% if current_filters.severity == val %}selected{% endif %}
         >
           {{ label }}
         </option>
@@ -49,13 +43,7 @@ Events{% endblock %} {% block topbar_title %}⚡ Security Events{% endblock %} {
         {% for val, label in event_types %}
         <option
           value="{{ val }}"
-          {%
-          if
-          current_filters.event_type=""
-          ="val"
-          %}selected{%
-          endif
-          %}
+          {% if current_filters.event_type == val %}selected{% endif %}
         >
           {{ label }}
         </option>
@@ -94,13 +82,7 @@ Events{% endblock %} {% block topbar_title %}⚡ Security Events{% endblock %} {
         {% for d in period_options %}
         <option
           value="{{ d }}"
-          {%
-          if
-          current_filters.days=""
-          ="d"
-          %}selected{%
-          endif
-          %}
+          {% if current_filters.days == d %}selected{% endif %}
         >
           Last {{ d }} day{{ d|pluralize }}
         </option>

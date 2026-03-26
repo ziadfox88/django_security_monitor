@@ -29,6 +29,7 @@ beautiful dark-mode dashboard — all from inside your Django project.
 - [Middleware Reference](#-middleware-reference)
 - [Security Settings Reference](#-security-settings-reference)
 - [Management Commands](#-management-commands)
+- [Deployment Security](#-deployment-security)
 - [FAQ](#-faq)
 - [License](#-license)
 
@@ -247,6 +248,10 @@ SECURITY_MONITOR = {
 
     # Whitelist cache refresh interval (seconds)
     'WHITELIST_CACHE_TTL': 300,
+
+    # URL or name to return to your main application dashboard.
+    # If set, a "Project Dashboard" link appears in the sidebar.
+    'BACK_URL': 'home',
 
     # ── Scoring Weights ──────────────────────────────────────────
     # How many threat score points each event type adds.
@@ -520,8 +525,11 @@ SECURITY_MONITOR = {
     # Brute force
     'MAX_LOGIN_ATTEMPTS': 5,       # failures before brute_force event
     'LOGIN_ATTEMPT_WINDOW': 300,   # within this window (seconds)
-}
 
+    # Return link
+    'BACK_URL': '/dashboard/',
+}
+```
 ```bash
 Predicted Latency Per Request
 Every request passes through two middleware layers. Here is what each one costs:
@@ -592,6 +600,25 @@ At high traffic without Celery, the SecurityEvent table grows fast
 
 ```bash
 
+
+########################################################################
+🛡️ Deployment Security
+
+To ensure maximum security when using this library in production:
+
+### 1. Trusted Proxies & IP Spoofing
+The library uses `X-Forwarded-For` and `X-Real-IP` headers to identify visitors. If your app is not behind a trusted proxy (like Nginx, Gunicorn, or Cloudflare) that strips these headers from the client, an attacker can spoof their IP address.
+**Recommendation:** Always ensure your web server is configured to set these headers correctly and ignore client-supplied values.
+
+### 2. Database Growth
+In high-traffic sites, the `SecurityEvent` and `PageView` tables can grow rapidly. 
+**Recommendation:** Enable Celery to use the automatic cleanup tasks, or manually run a cron job to prune old records.
+
+### 3. Dashboard Access
+By default, the dashboard is only accessible to superusers. If you use `ALLOWED_USERS`, ensure you only list trusted usernames.
+**Recommendation:** Use a strong password policy and MFA for any account that has access to the security dashboard.
+```
+```bash
 ########################################################################
 ❓ FAQ
 Q: Does this replace Django's built-in security middleware?

@@ -16,7 +16,7 @@ from .models import (
 )
 from .conf import monitor_settings, is_redis_available,is_celery_available
 
-logger = logging.getLogger('django_security_monitor')
+logger = logging.getLogger(__name__)
 
 # ── Attack-detection compiled patterns ──────────────────────────────────────
 _SQL = re.compile(

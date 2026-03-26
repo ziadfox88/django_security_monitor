@@ -247,7 +247,7 @@ new Chart(document.getElementById('chartTimeline'), {
 });
 
 // ── Live polling ──────────────────────────────────────────
-let lastId = 0;
+let lastId = {{ recent_events.0.pk|default:0 }};
 const feed = document.getElementById('live-feed');
 const sev_colors = {
   critical:'badge-critical',high:'badge-high',
@@ -259,15 +259,20 @@ async function pollEvents() {
     const res = await fetch(`{% url 'security_monitor:live_events' %}?since=${lastId}`);
     const data = await res.json();
     if (data.events.length) {
+      // Update lastId with the newest event ID (first in the list)
       lastId = data.events[0].id;
-      data.events.forEach(e => {
+      const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      // Iterate backwards so prepending keeps the newest at the top
+      [...data.events].reverse().forEach(e => {
         const tr = document.createElement('tr');
+        const detailUrl = "{% url 'security_monitor:threats' %}" + e.ip + "/";
         tr.innerHTML = `
-          <td style="color:var(--text3);white-space:nowrap">${e.timestamp}</td>
-          <td class="ip-cell"><a href="/{% url 'security_monitor:threats' %}${e.ip}/">${e.ip}</a></td>
-          <td>${e.type}</td>
-          <td><span class="badge ${sev_colors[e.severity]||''}">${e.severity}</span></td>
-          <td class="path-cell" title="${e.path}">${e.path}</td>`;
+          <td style="color:var(--text3);white-space:nowrap">${esc(e.timestamp)}</td>
+          <td class="ip-cell"><a href="${detailUrl}">${esc(e.ip)}</a></td>
+          <td>${esc(e.type)}</td>
+          <td><span class="badge ${sev_colors[e.severity]||''}">${esc(e.severity)}</span></td>
+          <td class="path-cell" title="${esc(e.path)}">${esc(e.path)}</td>`;
         feed.prepend(tr);
       });
       // Keep max 30 rows
